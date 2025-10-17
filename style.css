@@ -1,0 +1,134 @@
+/* style.css - PotesHub (mobile-first, fidèle au design capture)
+   Remplacer entièrement le fichier style.css par ce contenu. */
+
+/* Google font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+:root{
+  --bg-1:#161218; --bg-2:#231425;
+  --accent-1:#667EEA; --accent-2:#764BA2;
+  --muted: rgba(255,255,255,0.6);
+  --card-radius:18px;
+  --input-radius:22px;
+  --btn-height:48px;
+  --glass-border: rgba(255,255,255,0.03);
+  --shadow-1: 0 10px 30px rgba(0,0,0,0.6);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body{
+  font-family:'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: radial-gradient(1200px 600px at 10% 10%, rgba(48,20,38,0.55), transparent 10%), linear-gradient(135deg,var(--bg-1) 0%,var(--bg-2) 100%);
+  color:#fff; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  min-height:100vh; padding: calc(22px + var(--safe-top)) 16px calc(22px + var(--safe-bottom));
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* container */
+.container{ width:100%; max-width:520px; margin:0 auto; padding:0 12px; }
+
+/* auth card */
+.auth-box{
+  width:100%; max-width:460px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: var(--card-radius); padding:36px 28px; border:1px solid var(--glass-border);
+  box-shadow: var(--shadow-1), inset 0 1px 0 rgba(255,255,255,0.02); backdrop-filter: blur(8px);
+}
+
+/* title */
+.auth-title{ display:flex; align-items:center; justify-content:center; gap:12px; font-weight:800; font-size:22px; color:transparent; background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); -webkit-background-clip:text; background-clip:text; margin-bottom:6px; }
+.auth-title .icon{ display:inline-flex; width:34px; height:34px; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white; box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
+
+/* subtitle */
+.auth-subtitle{ text-align:center; color: rgba(255,255,255,0.65); font-size:13px; margin-bottom:18px; }
+
+/* messages */
+#errorMsg,#successMsg{ display:none; padding:10px 12px; border-radius:10px; margin-bottom:12px; font-size:13px; }
+#errorMsg{ background: rgba(239,68,68,0.12); color:#ffd1d1; border:1px solid rgba(239,68,68,0.15); }
+#successMsg{ background: rgba(99,255,178,0.06); color:#c7f9e1; border:1px solid rgba(34,197,94,0.08); }
+
+/* inputs */
+.input-group{ margin-bottom:14px; }
+.input-group label{ display:block; font-size:13px; margin-bottom:8px; color: rgba(255,255,255,0.65); font-weight:600; }
+.input-group input{ width:100%; padding:14px 16px; border-radius: var(--input-radius); border:none; background:#eaf2ff; color:#0f1722; font-size:15px; outline:none; box-shadow: inset 0 2px 6px rgba(0,0,0,0.12); }
+.input-group input::placeholder{ color: rgba(15,23,34,0.45); }
+
+/* checkbox */
+.checkbox-group{ display:flex; align-items:center; gap:8px; margin-bottom:16px; color: rgba(255,255,255,0.85); }
+.checkbox-group input[type="checkbox"]{ width:18px; height:18px; accent-color:#2f9bff; border-radius:4px; }
+
+/* buttons */
+.btn{ width:100%; border-radius:12px; font-weight:700; font-size:16px; padding:11px 14px; cursor:pointer; border:none; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+.btn-primary{ background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:#fff; height:var(--btn-height); }
+.btn-primary:hover{ transform: translateY(-2px); transition: transform .14s; box-shadow: 0 14px 40px rgba(102,126,234,0.16); }
+.btn-secondary{ background:transparent; color: rgba(255,255,255,0.9); border:1px solid rgba(255,255,255,0.06); height:var(--btn-height); }
+
+.btn + .btn{ margin-top:12px; }
+
+/* header & main */
+.header{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:14px; padding:12px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(255,255,255,0.03); }
+.user-info{ display:flex; align-items:center; gap:12px; }
+.user-avatar{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white; font-weight:800; }
+
+/* admin badge */
+.admin-badge{ background: linear-gradient(90deg,#f59e0b,#ef4444); padding:6px 10px; border-radius:20px; font-weight:700; font-size:12px; color:white; }
+
+/* layout actions */
+.action-buttons{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px; }
+.action-btn{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:14px; padding:16px; text-align:center; cursor:pointer; box-shadow: 0 8px 30px rgba(0,0,0,0.5); transition: transform .16s; }
+.action-btn .icon{ font-size:34px; display:block; margin-bottom:8px; }
+.action-btn .label{ font-weight:700; font-size:15px; }
+
+/* messages */
+.messages-section{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.03); }
+.section-title{ display:flex; gap:10px; align-items:center; font-weight:700; margin-bottom:12px; }
+.message-item{ background: rgba(255,255,255,0.02); border-radius:12px; padding:12px; margin-bottom:10px; border-left:3px solid rgba(102,126,234,0.12); }
+.message-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.message-author{ font-weight:700; color: var(--accent-1); }
+.message-time{ font-size:12px; color: rgba(255,255,255,0.45); }
+.message-type{ display:inline-block; padding:5px 10px; border-radius:999px; font-weight:800; font-size:11px; margin-bottom:8px; }
+.type-jouer{ background: rgba(34,197,94,0.12); color: #86efac; }
+.type-aide{ background: rgba(234,179,8,0.12); color:#fde047; }
+.type-message{ background: rgba(59,130,246,0.08); color:#93c5fd; }
+
+/* admin panel cards */
+.admin-panel{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:14px; border:1px solid rgba(255,255,255,0.03); margin-bottom:80px; }
+.user-list{ display:flex; flex-direction:column; gap:10px; }
+.user-card{ display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:10px; background: rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); }
+.user-card-info{ display:flex; align-items:center; gap:12px; }
+
+/* modal */
+.modal{ display:none; position:fixed; inset:0; background: rgba(2,2,6,0.65); backdrop-filter: blur(6px); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+.modal.active{ display:flex; }
+.modal-content{ width:100%; max-width:520px; border-radius:18px; padding:20px; background: linear-gradient(180deg, rgba(26,26,26,0.98), rgba(20,20,28,0.98)); border:1px solid rgba(255,255,255,0.03); }
+
+/* nav bottom */
+.nav-bar{ position:fixed; left:0; right:0; bottom:0; display:flex; background: rgba(20,20,20,0.95); border-top:1px solid rgba(255,255,255,0.03); z-index:1200; padding-bottom: calc(8px + var(--safe-bottom)); }
+.nav-btn{ flex:1; padding:12px 8px; border:none; background:transparent; color: rgba(255,255,255,0.6); font-size:20px; cursor:pointer; }
+.nav-btn.active{ color: var(--accent-1); }
+
+/* hidden helper */
+.hidden{ display:none !important; }
+
+/* responsive tweaks for small screens */
+@media (max-width:480px){
+  .auth-box{ padding:22px 16px; border-radius:16px; }
+  .auth-title{ font-size:20px; }
+  .input-group input{ padding:14px 14px; border-radius:18px; font-size:16px; }
+  .btn{ height:56px; font-size:16px; border-radius:14px; }
+  .action-btn{ padding:14px; }
+  .action-btn .icon{ font-size:34px; }
+  .message-item{ padding:12px; border-radius:12px; }
+  .modal-content{ width: calc(100% - 28px); margin:0 8px; }
+  .nav-btn{ font-size:22px; padding:14px 10px; }
+  .user-avatar{ width:40px; height:40px; }
+}
+
+/* medium phones */
+@media (min-width:481px) and (max-width:768px){
+  .input-group input{ font-size:15.5px; padding:13px 14px; }
+  .btn{ height:52px; }
+}

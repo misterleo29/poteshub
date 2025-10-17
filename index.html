@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>PotesHub - App entre potes</title>
+  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a1a" />
+</head>
+<body>
+  <!-- Auth Page -->
+  <div id="authPage" class="auth-container">
+    <div class="container">
+      <div class="auth-box">
+        <h1 class="auth-title"><span class="icon">🎮</span> PotesHub</h1>
+        <p class="auth-subtitle">Reste connecté avec tes potes</p>
+
+        <div id="errorMsg" class="error-message"></div>
+        <div id="successMsg" class="success-message"></div>
+
+        <!-- Login Form -->
+        <div id="loginForm">
+          <div class="input-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="ton@email.com">
+          </div>
+          <div class="input-group">
+            <label for="loginPassword">Mot de passe</label>
+            <input type="password" id="loginPassword" placeholder="••••••••">
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="rememberMe">
+            <label for="rememberMe">Rester connecté</label>
+          </div>
+          <button class="btn btn-primary" id="loginBtn">Se connecter</button>
+          <button class="btn btn-secondary" id="showRegisterBtn">Créer un compte</button>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerForm" class="hidden">
+          <div class="input-group">
+            <label for="registerUsername">Pseudo</label>
+            <input type="text" id="registerUsername" placeholder="TonPseudo">
+          </div>
+          <div class="input-group">
+            <label for="registerEmail">Email</label>
+            <input type="email" id="registerEmail" placeholder="ton@email.com">
+          </div>
+          <div class="input-group">
+            <label for="registerPassword">Mot de passe</label>
+            <input type="password" id="registerPassword" placeholder="••••••••">
+          </div>
+          <button class="btn btn-primary" id="registerBtn">Créer mon compte</button>
+          <button class="btn btn-secondary" id="showLoginBtn">J'ai déjà un compte</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="hidden">
+    <div class="container" style="margin-bottom: 90px;">
+      <div class="header">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar"></div>
+          <div>
+            <div id="userName" style="font-weight: 600;"></div>
+            <div id="adminBadge" class="admin-badge hidden">ADMIN</div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+      </div>
+
+      <div id="mainView">
+        <div class="action-buttons">
+          <div class="action-btn" id="quickPlayBtn">
+            <div class="icon">🎮</div>
+            <div class="label">Qui joue ?</div>
+          </div>
+          <div class="action-btn" id="quickHelpBtn">
+            <div class="icon">🆘</div>
+            <div class="label">Besoin d'aide</div>
+          </div>
+        </div>
+
+        <div class="action-btn" id="customMessageBtn" style="margin-bottom:20px;">
+          <div class="icon">💬</div>
+          <div class="label">Message personnalisé</div>
+        </div>
+
+        <div class="messages-section">
+          <div class="section-title">
+            <span>📬</span><span>Fil des messages</span>
+          </div>
+          <div id="messagesList"></div>
+        </div>
+      </div>
+
+      <div id="adminView" class="hidden admin-panel">
+        <div class="section-title"><span>⚙️</span><span>Panel Admin</span></div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+          <button id="adminBroadcastBtn" class="btn btn-primary">Broadcast</button>
+          <button id="adminClearMessagesBtn" class="btn btn-secondary">Vider messages</button>
+          <button id="adminExportCsvBtn" class="btn btn-secondary">Exporter utilisateurs</button>
+          <button id="adminSetPassBtn" class="btn btn-secondary">Init / Changer mot de passe</button>
+        </div>
+        <div class="admin-section">
+          <h3 style="margin-bottom:12px;">👥 Utilisateurs</h3>
+          <div id="usersList" class="user-list"></div>
+        </div>
+        <div class="admin-section">
+          <h3 style="margin-bottom:12px;">💬 Messages</h3>
+          <div id="adminMessagesList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-bar">
+      <button class="nav-btn active" id="mainNavBtn">🏠</button>
+      <button class="nav-btn" id="adminNavBtn" style="display:none;">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Message Modal -->
+  <div id="messageModal" class="modal">
+    <div class="modal-content">
+      <h2 class="modal-title">💬 Nouveau message</h2>
+      <div class="input-group">
+        <label for="customMessage">Ton message</label>
+        <input type="text" id="customMessage" placeholder="Écris ton message...">
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <button class="btn btn-primary" id="sendCustomMessageBtn">Envoyer</button>
+        <button class="btn btn-secondary" id="speechBtn">🎤 Parler</button>
+        <button class="btn btn-secondary" id="closeMessageModalBtn">Annuler</button>
+      </div>
+      <small style="color:rgba(255,255,255,0.6)">Tu peux dicter ton message avec 🎤 ou taper directement.</small>
+    </div>
+  </div>
+
+  <!-- Reply Modal -->
+  <div id="replyModal" class="modal">
+    <div class="modal-content">
+      <h2 class="modal-title">↩️ Répondre</h2>
+      <div class="input-group">
+        <label for="replyText">Ta réponse</label>
+        <input type="text" id="replyText" placeholder="Ta réponse...">
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <button class="btn btn-primary" id="sendReplyBtn">Envoyer</button>
+        <button class="btn btn-secondary" id="closeReplyModalBtn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Password Modal -->
+  <div id="adminPassModal" class="modal">
+    <div class="modal-content">
+      <h2 class="modal-title">🔐 Mot de passe Admin</h2>
+      <div class="input-group">
+        <label for="adminPassInput">Saisis le mot de passe</label>
+        <input type="password" id="adminPassInput" placeholder="Mot de passe admin">
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <button class="btn btn-primary" id="adminPassSubmitBtn">Valider</button>
+        <button class="btn btn-secondary" id="adminPassCancelBtn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install button (mobile) -->
+  <button id="installBtn" class="btn btn-secondary install-btn" style="display:none;">Installer l'app</button>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
