@@ -1,5 +1,5 @@
-// app.js - PotesHub v2 (mobile-first, messages, rooms, audio, polls, admin tools)
-// IMPORTANT: replace VAPID_KEY with your Firebase Cloud Messaging Web Push public key
+// app.js - PotesHub (v2) - enregistrement audio en Base64 (pas de Storage)
+// IMPORTANT: Remplace VAPID_KEY par ta clé publique Web Push (Cloud Messaging -> Web push certificates)
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import {
@@ -7,9 +7,8 @@ import {
   browserLocalPersistence, browserSessionPersistence
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
-  getDatabase, ref, set, push, onChildAdded, onValue, get, remove, update, query, orderByChild, equalTo
+  getDatabase, ref, push, onValue, get, remove, update, query, orderByChild, limitToLast
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
 import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js';
 
 // ---------- CONFIG ----------
@@ -23,111 +22,118 @@ const firebaseConfig = {
   appId: "1:457001877075:web:1e0d09aec0c02349db10a6"
 };
 
+// Colle ta VAPID public key ici
 const VAPID_KEY = "BB17qG7_5I5vQUX8Dltmk0_GTbBB9avg-pUR7PMBHPpghVE6yybsle-FDapwWEdd3_xRp-3zMMlWl6ssqH792R0";
 
 // ---------- INIT ----------
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
-const storage = getStorage(app);
 let messaging;
-try { messaging = getMessaging(app); } catch (e) { console.warn('messaging init failed', e); }
+try { messaging = getMessaging(app); } catch(e){ console.warn('messaging init failed', e); }
 
 let currentUser = null;
 let currentUserData = null;
 let adminUnlocked = false;
 
-// DOM
+// ---------- DOM references ----------
+const $ = id => document.getElementById(id);
 const ui = {
-  authPage: document.getElementById('authPage'),
-  mainApp: document.getElementById('mainApp'),
-  loginEmail: document.getElementById('loginEmail'),
-  loginPassword: document.getElementById('loginPassword'),
-  registerEmail: document.getElementById('registerEmail'),
-  registerPassword: document.getElementById('registerPassword'),
-  registerUsername: document.getElementById('registerUsername'),
+  authPage: $('authPage'),
+  mainApp: $('mainApp'),
 
-  loginForm: document.getElementById('loginForm'),
-  registerForm: document.getElementById('registerForm'),
+  // auth
+  loginEmail: $('loginEmail'),
+  loginPassword: $('loginPassword'),
+  registerUsername: $('registerUsername'),
+  registerEmail: $('registerEmail'),
+  registerPassword: $('registerPassword'),
+  loginForm: $('loginForm'),
+  registerForm: $('registerForm'),
 
-  userName: document.getElementById('userName'),
-  userAvatar: document.getElementById('userAvatar'),
-  userMood: document.getElementById('userMood'),
-  logoutBtn: document.getElementById('logoutBtn'),
+  // main
+  userName: $('userName'),
+  userAvatar: $('userAvatar'),
+  userMood: $('userMood'),
+  logoutBtn: $('logoutBtn'),
+  roomSelect: $('roomSelect'),
+  messagesList: $('messagesList'),
+  messagesTitle: $('messagesTitle'),
+  messageInput: $('messageInput'),
+  sendBtn: $('sendBtn'),
 
-  roomSelect: document.getElementById('roomSelect'),
-  messagesList: document.getElementById('messagesList'),
-  messagesTitle: document.getElementById('messagesTitle'),
-  messageInput: document.getElementById('messageInput'),
-  sendBtn: document.getElementById('sendBtn'),
+  // controls
+  btnQuickPlay: $('btnQuickPlay'),
+  btnHelp: $('btnHelp'),
+  btnPoll: $('btnPoll'),
+  btnChallenge: $('btnChallenge'),
+  openRecorderBtn: $('openRecorderBtn'),
+  openDictBtn: $('openDictBtn'),
+  btnMood: $('btnMood'),
+  openProfileBtn: $('openProfileBtn'),
+  openAdminBtn: $('openAdminBtn'),
+  navAdmin: $('navAdmin'),
 
-  btnQuickPlay: document.getElementById('btnQuickPlay'),
-  btnHelp: document.getElementById('btnHelp'),
-  btnPoll: document.getElementById('btnPoll'),
-  btnChallenge: document.getElementById('btnChallenge'),
-  openRecorderBtn: document.getElementById('openRecorderBtn'),
-  openDictBtn: document.getElementById('openDictBtn'),
-  btnMood: document.getElementById('btnMood'),
-  openProfileBtn: document.getElementById('openProfileBtn'),
-  openAdminBtn: document.getElementById('openAdminBtn'),
-  navAdmin: document.getElementById('navAdmin'),
+  // recorder modal
+  recModal: $('recModal'),
+  startRecBtn: $('startRecBtn'),
+  stopRecBtn: $('stopRecBtn'),
+  closeRecBtn: $('closeRecBtn'),
+  recStatus: $('recStatus'),
+  recPreview: $('recPreview'),
 
-  // modals
-  recModal: document.getElementById('recModal'),
-  startRecBtn: document.getElementById('startRecBtn'),
-  stopRecBtn: document.getElementById('stopRecBtn'),
-  closeRecBtn: document.getElementById('closeRecBtn'),
-  recStatus: document.getElementById('recStatus'),
-  recPreview: document.getElementById('recPreview'),
+  // poll modal
+  pollModal: $('pollModal'),
+  pollQuestion: $('pollQuestion'),
+  pollOpt1: $('pollOpt1'),
+  pollOpt2: $('pollOpt2'),
+  createPollBtn: $('createPollBtn'),
+  closePollBtn: $('closePollBtn'),
 
-  pollModal: document.getElementById('pollModal'),
-  pollQuestion: document.getElementById('pollQuestion'),
-  pollOpt1: document.getElementById('pollOpt1'),
-  pollOpt2: document.getElementById('pollOpt2'),
-  createPollBtn: document.getElementById('createPollBtn'),
-  closePollBtn: document.getElementById('closePollBtn'),
+  // challenge modal
+  challengeModal: $('challengeModal'),
+  challengeText: $('challengeText'),
+  createChallengeBtn: $('createChallengeBtn'),
+  closeChallengeBtn: $('closeChallengeBtn'),
 
-  challengeModal: document.getElementById('challengeModal'),
-  challengeText: document.getElementById('challengeText'),
-  createChallengeBtn: document.getElementById('createChallengeBtn'),
-  closeChallengeBtn: document.getElementById('closeChallengeBtn'),
+  // profile modal
+  profileModal: $('profileModal'),
+  profileName: $('profileName'),
+  profileBio: $('profileBio'),
+  profileEmoji: $('profileEmoji'),
+  saveProfileBtn: $('saveProfileBtn'),
+  closeProfileBtn: $('closeProfileBtn'),
 
-  profileModal: document.getElementById('profileModal'),
-  profileName: document.getElementById('profileName'),
-  profileBio: document.getElementById('profileBio'),
-  profileEmoji: document.getElementById('profileEmoji'),
-  saveProfileBtn: document.getElementById('saveProfileBtn'),
-  closeProfileBtn: document.getElementById('closeProfileBtn'),
+  // admin
+  adminPassModal: $('adminPassModal'),
+  adminPassInput: $('adminPassInput'),
+  adminPassSubmitBtn: $('adminPassSubmitBtn'),
+  adminPassCancelBtn: $('adminPassCancelBtn'),
+  adminPanel: $('adminPanel'),
+  admBroadcastBtn: $('admBroadcastBtn'),
+  admPushBtn: $('admPushBtn'),
+  admExportUsersBtn: $('admExportUsersBtn'),
+  admExportTokensBtn: $('admExportTokensBtn'),
+  admClearMessagesBtn: $('admClearMessagesBtn'),
+  admSetPassBtn: $('admSetPassBtn'),
+  adminUsersList: $('adminUsersList'),
+  adminMessagesList: $('adminMessagesList'),
+  closeAdminBtn: $('closeAdminBtn'),
 
-  adminPassModal: document.getElementById('adminPassModal'),
-  adminPassInput: document.getElementById('adminPassInput'),
-  adminPassSubmitBtn: document.getElementById('adminPassSubmitBtn'),
-  adminPassCancelBtn: document.getElementById('adminPassCancelBtn'),
-
-  adminPanel: document.getElementById('adminPanel'),
-  admBroadcastBtn: document.getElementById('admBroadcastBtn'),
-  admPushBtn: document.getElementById('admPushBtn'),
-  admExportUsersBtn: document.getElementById('admExportUsersBtn'),
-  admExportTokensBtn: document.getElementById('admExportTokensBtn'),
-  admClearMessagesBtn: document.getElementById('admClearMessagesBtn'),
-  admSetPassBtn: document.getElementById('admSetPassBtn'),
-  adminUsersList: document.getElementById('adminUsersList'),
-  adminMessagesList: document.getElementById('adminMessagesList'),
-  closeAdminBtn: document.getElementById('closeAdminBtn'),
-
-  errorMsg: document.getElementById('errorMsg'),
-  successMsg: document.getElementById('successMsg')
+  // feedback
+  errorMsg: $('errorMsg'),
+  successMsg: $('successMsg'),
 };
 
 // ---------- Event wiring ----------
-document.getElementById('loginBtn').addEventListener('click', login);
-document.getElementById('showRegisterBtn').addEventListener('click', ()=>{ ui.loginForm.classList.add('hidden'); ui.registerForm.classList.remove('hidden'); });
-document.getElementById('showLoginBtn').addEventListener('click', ()=>{ ui.registerForm.classList.add('hidden'); ui.loginForm.classList.remove('hidden'); });
-document.getElementById('registerBtn').addEventListener('click', register);
+$('loginBtn').addEventListener('click', login);
+$('showRegisterBtn').addEventListener('click', ()=>{ ui.loginForm.classList.add('hidden'); ui.registerForm.classList.remove('hidden'); });
+$('showLoginBtn').addEventListener('click', ()=>{ ui.registerForm.classList.add('hidden'); ui.loginForm.classList.remove('hidden'); });
+$('registerBtn').addEventListener('click', register);
 ui.logoutBtn.addEventListener('click', logout);
 
 ui.sendBtn.addEventListener('click', sendMessage);
-ui.messageInput.addEventListener('keydown', (e)=>{ if (e.key==='Enter') sendMessage(); });
+ui.messageInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
 ui.btnQuickPlay.addEventListener('click', ()=> quickMessage('jouer'));
 ui.btnHelp.addEventListener('click', ()=> quickMessage('aide'));
@@ -165,15 +171,16 @@ ui.startRecBtn.addEventListener('click', startRecording);
 ui.stopRecBtn.addEventListener('click', stopRecording);
 ui.closeRecBtn.addEventListener('click', ()=> closeModal('recModal'));
 
-// admin lists (delegated)
-
-// ---------- Helpers: UI ----------
+// ---------- Helpers ----------
 function showError(msg){ ui.errorMsg.textContent = msg; ui.errorMsg.style.display = 'block'; setTimeout(()=> ui.errorMsg.style.display='none',5000); }
 function showSuccess(msg){ ui.successMsg.textContent = msg; ui.successMsg.style.display = 'block'; setTimeout(()=> ui.successMsg.style.display='none',3000); }
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 
-// ---------- Auth ----------
+function escapeHtml(s){ if (s === undefined || s === null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function escapeJs(s){ if (!s) return ''; return String(s).replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,' '); }
+
+// ---------- AUTH ----------
 async function register(){
   const username = ui.registerUsername.value.trim();
   const email = ui.registerEmail.value.trim();
@@ -182,10 +189,10 @@ async function register(){
   if (password.length < 6) return showError("Mot de passe >= 6");
   try {
     const res = await createUserWithEmailAndPassword(auth, email, password);
-    await set(ref(db, 'users/' + res.user.uid), { username, email, isAdmin:false, createdAt: Date.now() });
+    await push(ref(db, 'users/' + res.user.uid), { username, email, isAdmin:false, createdAt: Date.now() });
     showSuccess("Compte créé, connecte-toi !");
     ui.registerForm.classList.add('hidden'); ui.loginForm.classList.remove('hidden');
-  } catch (e) { showError(e.message); }
+  } catch (e){ showError(e.message); }
 }
 
 async function login(){
@@ -193,17 +200,17 @@ async function login(){
   const password = ui.loginPassword.value;
   if (!email || !password) return showError("Email & mot de passe requis");
   try {
-    const persistence = document.getElementById('rememberMe').checked ? browserLocalPersistence : browserSessionPersistence;
+    const persistence = document.getElementById('rememberMe')?.checked ? browserLocalPersistence : browserSessionPersistence;
     await setPersistence(auth, persistence);
     await signInWithEmailAndPassword(auth, email, password);
-  } catch (e) { showError(e.message); }
+  } catch(e){ showError(e.message); }
 }
 
 async function logout(){
   try { await signOut(auth); } catch(e){ console.warn(e); }
 }
 
-// ---------- Auth state listener ----------
+// ---------- Auth state ----------
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     currentUser = null; currentUserData = null;
@@ -211,7 +218,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   currentUser = user;
-  // load user data
+  // read profile
   const snap = await get(ref(db, 'users/' + user.uid));
   currentUserData = snap.val() || { username: 'Utilisateur', isAdmin:false };
   ui.userName.textContent = currentUserData.username || 'Utilisateur';
@@ -219,36 +226,35 @@ onAuthStateChanged(auth, async (user) => {
   ui.userMood.textContent = currentUserData.mood || '—';
   ui.authPage.classList.add('hidden'); ui.mainApp.classList.remove('hidden');
 
-  // admin button
+  // admin UI
   if (currentUserData.isAdmin) {
-    document.getElementById('openAdminBtn').style.display = 'inline-block';
+    ui.openAdminBtn.style.display = 'inline-block';
     ui.navAdmin.style.display = 'block';
   } else {
-    document.getElementById('openAdminBtn').style.display = 'none';
+    ui.openAdminBtn.style.display = 'none';
     ui.navAdmin.style.display = 'none';
   }
 
-  // load rooms & messages
+  // rooms & messages
   await loadRooms();
   attachMessagesListener();
+
+  // notifications
   registerServiceWorkerAndNotifications();
 });
 
 // ---------- Rooms ----------
 async function loadRooms(){
-  // default rooms
   const defaultRooms = [{ id:'general', name:'Général' }, { id:'gaming', name:'Gaming' }];
-  // dynamic rooms may be stored under /rooms
   const snap = await get(ref(db, 'rooms'));
   const rooms = snap.exists() ? Object.keys(snap.val()).map(k=>({ id:k, name: snap.val()[k].name || k })) : defaultRooms;
-  // ensure defaults
   if (!rooms.find(r=>r.id==='general')) rooms.unshift({id:'general',name:'Général'});
   if (!rooms.find(r=>r.id==='gaming')) rooms.push({id:'gaming',name:'Gaming'});
   ui.roomSelect.innerHTML = rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
   ui.roomSelect.addEventListener('change', () => { attachMessagesListener(); });
 }
 
-// ---------- Messages send / receive ----------
+// ---------- Messages: send & receive ----------
 function getCurrentRoom(){ return ui.roomSelect.value || 'general'; }
 
 async function sendMessage(){
@@ -269,41 +275,37 @@ async function sendMessage(){
   showSuccess("Message envoyé");
 }
 
+// Listen last 200 messages and display those in current room
 function attachMessagesListener(){
-  // detach previous? simple: clear and rebind
   ui.messagesList.innerHTML = '<div style="color:rgba(255,255,255,0.5)">Chargement...</div>';
-  const room = getCurrentRoom();
-  // we listen to /messages and filter client-side to keep simple
-  const messagesRef = ref(db, 'messages');
-  // remove existing listeners by cloning node? We'll just set onValue
-  onValue(messagesRef, snapshot => {
+  const msgsQuery = query(ref(db, 'messages'), orderByChild('timestamp'), limitToLast(200));
+  onValue(msgsQuery, snapshot => {
     const arr = [];
     snapshot.forEach(ch => {
       const v = ch.val(); v.id = ch.key;
       if (!v.room) v.room = 'general';
-      if (v.room === room) arr.push(v);
+      if (v.room === getCurrentRoom()) arr.push(v);
     });
     arr.sort((a,b)=>a.timestamp - b.timestamp);
     ui.messagesList.innerHTML = arr.map(m => renderMessage(m)).join('');
-    // attach delegated listeners for reply/listen/delete via global functions defined below
     ui.messagesList.scrollTop = ui.messagesList.scrollHeight;
-    // also populate admin panel messages
-    renderAdminMessages(arr);
+    // update admin panel messages
+    renderAdminMessagesList(arr);
   });
 }
 
 function renderMessage(m){
-  const t = new Date(m.timestamp).toLocaleString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const t = new Date(m.timestamp).toLocaleString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const isMine = currentUser && m.userId === currentUser.uid;
-  const audioHtml = m.audioUrl ? `<div style="margin-top:8px;"><audio controls src="${m.audioUrl}"></audio></div>` : '';
-  const pollHtml = m.poll ? renderPollInline(m.poll, m.id) : '';
-  const challengeHtml = m.challenge ? `<div style="margin-top:8px;border-left:3px solid rgba(255,192,203,0.06);padding-left:8px;">Défi: ${escapeHtml(m.challenge.text)} ${m.challenge.accepted ? '(accepté)':''}</div>` : '';
+  const audioHtml = m.audioData ? `<div style="margin-top:8px;"><audio controls src="${m.audioData}"></audio></div>` : '';
+  const pollHtml = m.poll ? renderPollInline(m.poll, m.pollId || '') : '';
+  const challengeHtml = m.challenge ? `<div style="margin-top:8px;border-left:3px solid rgba(255,192,203,0.06);padding-left:8px;">Défi: ${escapeHtml(m.challenge.text)}</div>` : '';
   return `<div class="message-item" id="msg-${m.id}">
     <div class="message-header">
       <span class="message-author">${escapeHtml(m.username)}${isMine? ' (moi)':''}</span>
       <span class="message-time">${t}</span>
     </div>
-    <div class="message-text">${escapeHtml(m.text||'')}</div>
+    <div class="message-text">${escapeHtml(m.text || '')}</div>
     ${audioHtml}
     ${pollHtml}
     ${challengeHtml}
@@ -330,13 +332,10 @@ window.speakText = (text) => {
   window.speechSynthesis.speak(u);
 };
 
-// ---------- Quick messages (prebuilt) ----------
+// ---------- Quick messages ----------
 async function quickMessage(kind){
   if (!currentUser) return showError("Connecte-toi");
-  const messages = {
-    jouer: "Qui est dispo pour jouer ?",
-    aide: "J'ai besoin d'aide !"
-  };
+  const messages = { jouer: "Qui est dispo pour jouer ?", aide: "J'ai besoin d'aide !" };
   const text = messages[kind] || "Message rapide";
   await push(ref(db, 'messages'), { text, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, type: kind, room:getCurrentRoom() });
   showSuccess("Message rapide envoyé");
@@ -348,38 +347,28 @@ async function createPoll(){
   const o1 = ui.pollOpt1.value.trim() || 'Oui';
   const o2 = ui.pollOpt2.value.trim() || 'Non';
   if (!q) return showError("Question requise");
-  const poll = { question:q, options:[o1,o2], votes: {} , creator: currentUser.uid, createdAt: Date.now() };
-  const pollRef = push(ref(db, 'polls'), poll);
-  // also push as a message so it appears in chat
-  await push(ref(db,'messages'), { text: `Sondage: ${q}`, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, pollId: pollRef.key, poll, room:getCurrentRoom() });
+  const pollRef = push(ref(db, 'polls'), { question:q, options:[o1,o2], votes:{}, creator: currentUser.uid, createdAt: Date.now() });
+  const pollObj = { pollId: pollRef.key, question:q, options:[o1,o2], votes:{} };
+  await push(ref(db, 'messages'), { text: `Sondage: ${q}`, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, poll: pollObj, pollId: pollRef.key, room:getCurrentRoom() });
   closeModal('pollModal'); showSuccess("Sondage créé");
 }
 
-function renderPollInline(poll, messageId){
-  // render options & counts; user can vote
+function renderPollInline(poll, pollId){
+  if (!poll) return '';
   const counts = poll.options.map((opt, idx) => {
     const votes = poll.votes ? Object.values(poll.votes).filter(v=>v===idx).length : 0;
     return { opt, votes };
   });
   const optionsHtml = counts.map((c, idx) => `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-      <button class="btn btn-secondary" onclick="votePoll('${messageId}','${poll.pollId||''}', ${idx})">${c.opt}</button>
-      <div style="font-size:13px;color:rgba(255,255,255,0.7)">${c.votes} vote(s)</div>
-    </div>`).join('');
+    <button class="btn btn-secondary" onclick="votePoll('${pollId}', ${idx})">${c.opt}</button>
+    <div style="font-size:13px;color:rgba(255,255,255,0.7)">${c.votes} vote(s)</div>
+  </div>`).join('');
   return `<div style="margin-top:10px;border-left:3px solid rgba(99,102,241,0.6);padding-left:8px;">${escapeHtml(poll.question)}${optionsHtml}</div>`;
 }
 
-window.votePoll = async (messageId, pollId, optionIdx) => {
-  // pollId may be stored at poll.pollId or in message: we attempt to find poll
-  // If pollId not passed, search message for pollId
-  let realPollId = pollId;
-  if (!realPollId) {
-    // attempt to get message and its pollId
-    const snap = await get(ref(db, 'messages/' + messageId));
-    const m = snap.val();
-    if (m && m.pollId) realPollId = m.pollId;
-  }
-  if (!realPollId) return showError("Poll introuvable");
-  await update(ref(db, `polls/${realPollId}/votes/${currentUser.uid}`), optionIdx);
+window.votePoll = async (pollId, optionIdx) => {
+  if (!pollId) return showError("Sondage introuvable");
+  await update(ref(db, `polls/${pollId}/votes/${currentUser.uid}`), optionIdx);
   showSuccess("Vote enregistré");
 };
 
@@ -387,19 +376,21 @@ window.votePoll = async (messageId, pollId, optionIdx) => {
 async function createChallenge(){
   const text = ui.challengeText.value.trim();
   if (!text) return showError("Écris un défi");
-  const payload = { text, creator: currentUser.uid, createdAt: Date.now(), acceptedBy:null };
-  const chRef = push(ref(db, 'challenges'), payload);
-  // push message
-  await push(ref(db, 'messages'), { text: `Défi: ${text}`, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, challenge: payload, room:getCurrentRoom(), challengeId: chRef.key });
+  const chRef = push(ref(db, 'challenges'), { text, creator: currentUser.uid, createdAt: Date.now(), acceptedBy: null });
+  await push(ref(db, 'messages'), { text: `Défi: ${text}`, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, challenge:{ text, id: chRef.key }, room:getCurrentRoom() });
   closeModal('challengeModal'); showSuccess("Défi lancé");
 }
 
 // ---------- Mood & Profile ----------
 async function setMood(text){
   if (!currentUser) return showError("Connecte-toi");
-  await set(ref(db, `moods/${currentUser.uid}`), { text, ts: Date.now(), username: currentUserData.username });
+  await update(ref(db, `users/${currentUser.uid}`), { mood: text });
+  await setUserMoodNode(currentUser.uid, text);
   ui.userMood.textContent = text;
   showSuccess("Mood partagé");
+}
+async function setUserMoodNode(uid, text){
+  await push(ref(db, 'moods'), { uid, text, ts: Date.now(), username: currentUserData.username || '' });
 }
 
 function openProfile(){
@@ -417,13 +408,14 @@ async function saveProfile(){
   currentUserData.username = username; currentUserData.bio = bio; currentUserData.emoji = emoji;
   ui.userName.textContent = username;
   ui.userAvatar.textContent = username[0].toUpperCase();
-  closeModal('profileModal');
-  showSuccess("Profil mis à jour");
+  closeModal('profileModal'); showSuccess("Profil mis à jour");
 }
 
-// ---------- Audio recording & upload ----------
+// ---------- Audio recording -> Stored as Base64 in Realtime DB ----------
 let mediaRecorder = null;
 let audioChunks = [];
+const MAX_AUDIO_BYTES = 2_200_000; // ~2.2MB recommended upper bound (adjust as needed)
+
 async function startRecording(){
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -432,30 +424,50 @@ async function startRecording(){
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
     mediaRecorder.onstop = async () => {
       const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      const filePath = `audio/${currentUser.uid}/${Date.now()}.webm`;
-      const storageRef = sRef(storage, filePath);
-      await uploadBytes(storageRef, blob);
-      const url = await getDownloadURL(storageRef);
-      // push message with audioUrl
-      await push(ref(db, 'messages'), { text: `(Message vocal)`, audioUrl: url, timestamp: Date.now(), username: currentUserData.username, userId: currentUser.uid, room:getCurrentRoom() });
+      // size check
+      if (blob.size > MAX_AUDIO_BYTES) {
+        showError("Enregistrement trop long — réduis la durée (max ~2MB).");
+        return;
+      }
+      // convert to dataURL (Base64)
+      const dataUrl = await blobToDataURL(blob);
+      // prepare message payload with audioData (data:image...)
+      const payload = {
+        text: '(Message vocal)',
+        audioData: dataUrl,
+        timestamp: Date.now(),
+        username: currentUserData.username,
+        userId: currentUser.uid,
+        type: 'audio',
+        room: getCurrentRoom()
+      };
+      await push(ref(db, 'messages'), payload);
+      // show preview
+      ui.recPreview.innerHTML = `<audio controls src="${dataUrl}"></audio>`;
       showSuccess("Enregistrement envoyé");
-      ui.recPreview.innerHTML = `<audio controls src="${url}"></audio>`;
     };
     mediaRecorder.start();
     ui.recStatus.textContent = 'Enregistrement...';
     ui.startRecBtn.disabled = true;
     ui.stopRecBtn.disabled = false;
-  } catch (e) { showError("Impossible d'accéder au micro"); console.error(e); }
+  } catch(e){ console.error(e); showError("Impossible d'accéder au micro"); }
 }
 
 function stopRecording(){
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  ui.recStatus.textContent = 'Téléversement en cours...';
+  ui.recStatus.textContent = 'Traitement...';
   ui.startRecBtn.disabled = false;
   ui.stopRecBtn.disabled = true;
 }
-window.startRecording = startRecording;
-window.stopRecording = stopRecording;
+
+function blobToDataURL(blob){
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result);
+    reader.onerror = err => rej(err);
+    reader.readAsDataURL(blob); // gives "data:audio/webm;base64,AAAA..."
+  });
+}
 
 // ---------- Dictation (SpeechRecognition) ----------
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -470,16 +482,15 @@ if (SpeechRecognition) {
     ui.messageInput.value = (ui.messageInput.value ? ui.messageInput.value + ' ' : '') + text;
     showSuccess("Dictée insérée");
   });
-  recognition.addEventListener('error', (e)=> showError("Erreur dictée: "+e.error));
+  recognition.addEventListener('error', e => showError("Erreur dictée: " + e.error));
 }
 
 function startDictation(){
   if (!recognition) return showError("Dictée non supportée");
-  try { recognition.start(); showSuccess("Parle maintenant..."); } catch(e) { showError("Impossible de démarrer la dictée"); }
+  try { recognition.start(); showSuccess("Parle maintenant..."); } catch(e){ showError("Impossible de démarrer la dictée"); }
 }
 
-// ---------- Admin ----------
-
+// ---------- Admin (password hashed) ----------
 async function submitAdminPass(){
   const pass = ui.adminPassInput.value || '';
   closeModal('adminPassModal');
@@ -501,10 +512,16 @@ async function adminInitChangePassword(){
   if (!newPass) return;
   if (!confirm("Confirmer l'initialisation du mot de passe admin ?")) return;
   const h = await sha256Hex(newPass);
-  await set(ref(db,'admin/passwordHash'), h);
+  await push(ref(db, 'admin'), { passwordHash: h }); // push to create node if not exists
+  // better: set(ref(db, 'admin/passwordHash'), h);
+  await setAdminPasswordHash(h);
   showSuccess("Mot de passe admin initialisé");
 }
+async function setAdminPasswordHash(h){
+  await update(ref(db, 'admin'), { passwordHash: h });
+}
 
+// ---------- Admin utilities ----------
 async function loadAdminUsers(){
   const snap = await get(ref(db,'users'));
   const users = snap.exists() ? Object.entries(snap.val()) : [];
@@ -550,9 +567,8 @@ async function adminCreateNotificationNode(){
   const title = prompt("Titre de la notification:");
   const body = prompt("Message:");
   if (!title || !body) return;
-  // create a node under /notifications that server/cloudfunction can read and send FCM
   await push(ref(db, 'notifications'), { title, body, createdAt: Date.now(), by: currentUser.uid });
-  showSuccess("Notification enregistrée (à envoyer via Cloud Function ou serveur)");
+  showSuccess("Notification enregistrée (à envoyer via Cloud Function)");
 }
 
 async function adminExportUsersCSV(){
@@ -582,22 +598,15 @@ async function adminClearMessages(){
   showSuccess("Messages supprimés");
 }
 
-// admin messages list
-async function loadAdminMessages(){
-  const snap = await get(ref(db,'messages'));
-  const arr = [];
-  if (snap.exists()) {
-    snap.forEach(ch => arr.push({ id: ch.key, ...ch.val() }));
-  }
+function renderAdminMessagesList(arr){
   ui.adminMessagesList.innerHTML = arr.map(m => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px;">
     <div style="flex:1"><strong>${escapeHtml(m.username)}</strong><div style="font-size:13px;color:rgba(255,255,255,0.6)">${escapeHtml(m.text||'')}</div></div>
     <div style="display:flex;gap:8px;"><button class="delete-btn" onclick="deleteMessage('${m.id}')">Supprimer</button></div>
   </div>`).join('');
 }
 
-// ---------- deletion (admin or owner) ----------
+// ---------- delete (owner or admin) ----------
 window.deleteMessage = async (id) => {
-  // allow owner or adminUnlocked
   if (!currentUser) return showError("Connecte-toi");
   const snap = await get(ref(db,'messages/'+id));
   const m = snap.val();
@@ -608,20 +617,7 @@ window.deleteMessage = async (id) => {
   } else showError("Tu n'as pas le droit");
 };
 
-// ---------- utility & helpers ----------
-function downloadBlob(content, filename, mime){
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-
-function escapeHtml(s){ if (s === undefined || s === null) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
-function escapeJs(s){ if (!s) return ''; return String(s).replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,' '); }
-
-// ---------- Messages -> admin view render ----------
-function renderAdminMessages(arr){ /* populate admin messages in panel for quick moderation */ loadAdminMessages(); }
-
-// ---------- Notifications: register token (client) ----------
+// ---------- Notifications (client) ----------
 async function registerServiceWorkerAndNotifications(){
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('/sw.js'); console.log('SW registered'); } catch(e){ console.warn('SW reg fail', e); }
@@ -634,20 +630,26 @@ async function registerServiceWorkerAndNotifications(){
         const token = await getToken(messaging, { vapidKey: VAPID_KEY });
         console.log('FCM token', token);
         if (token && currentUser) {
-          await set(ref(db, `fcmTokens/${currentUser.uid}`), { token, ts: Date.now() });
+          await update(ref(db, `fcmTokens/${currentUser.uid}`), { token, ts: Date.now() });
         }
       } else console.warn('VAPID_KEY not set');
     }
     onMessage(messaging, payload => {
       console.log('Foreground message', payload);
-      // show notification via service worker if available
-      if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      if (navigator.serviceWorker) {
         navigator.serviceWorker.getRegistration().then(reg => {
           if (reg) reg.showNotification(payload.notification?.title || 'PotesHub', { body: payload.notification?.body || '', icon: payload.notification?.icon || '/icon-192.png' });
         });
       }
     });
-  } catch (e) { console.warn('notif err', e); }
+  } catch(e){ console.warn('notif err', e); }
+}
+
+// ---------- small utilities ----------
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
 // ---------- sha256 helper ----------
@@ -657,23 +659,9 @@ async function sha256Hex(message){
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
 }
+window.sha256Hex = sha256Hex;
 
-// ---------- admin helper: init password (exposed) ----------
-window.adminInitChangePassword = adminInitChangePassword;
+// ---------- final notes ----------
+console.log('PotesHub app.js loaded — audio stored in Realtime DB as Base64 (dataURL)');
 
-// ---------- load admin lists periodically if open ----------
-function whenAdminOpenUpdate(){
-  if (document.getElementById('adminPanel').classList.contains('active')) {
-    loadAdminUsers(); loadAdminMessages();
-  }
-}
-setInterval(whenAdminOpenUpdate, 5000);
-
-// ---------- small helpers: polls listener for update (optional) ----------
-onValue(ref(db, 'polls'), snap => {
-  // nothing extra: votes updates are in DB and are displayed in message rendering via poll stored in message snapshot at creation.
-  // optionally we could update messages to show latest counts by merging poll data into messages, but to keep simple we rely on clients to show polls when created.
-});
-
-// ---------- end of file ----------
-console.log('app.js loaded — PotesHub v2');
+// EOF
